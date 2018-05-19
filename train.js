@@ -13,6 +13,7 @@
 
     /* YOUR CODE BELOW HERE  */
     
+    TRAINING_DONE = 0
     // change this to your name
     const myname = "angelo"
 
@@ -68,20 +69,24 @@
 
     const X = []
     const y = []
+
+    const toX = (colorStr) => {
+        const color = tinycolor(colorStr)
+        const rgb = color.toRgb()
+        const hsv = color.toHsv()
+        return [rgb.r, rgb.g, rgb.b,  hsv.h, hsv.s, hsv.v, rgb.a, color.getBrightness(), color.getLuminance()]
+    }
     Object.entries(XKCD).forEach(entry => {
         const label = labelMap[findRealName(entry[1])]
-        const rgb = tinycolor(entry[0]).toRgb()
-        X.push([rgb.r, rgb.g, rgb.b, rgb.a])
+        X.push(toX(entry[0]))
         y.push(label)
     })
 
     // console.log(X.length) 98057
-
     const model = tf.sequential()
     model.add(tf.layers.dense(
-        {units: 40, activation: 'sigmoid', inputShape: [4]}));
-    model.add(tf.layers.dense({units: labels.length, activation: 'softmax'}));
-    // model.add(tf.layers.dense({inputShape: [4], units: labels.length, kernelInitializer: 'varianceScaling', activation: 'softmax'}))
+        {units: 50, activation: 'sigmoid', inputShape: [ X[0].length ]}));
+    model.add(tf.layers.dense({units: labels.length, activation: 'softmax'}))
 
     const LEARNING_RATE = 0.05
     const optimizer = tf.train.sgd(LEARNING_RATE)
@@ -97,9 +102,18 @@
 
     const batch_size = 1000
     const iter = 98
+    const randomIndex = tf.util.createShuffledIndices(X.length)
+
     for (let i = 0; i < iter; i++) {
-        const batch_xs = tf.tensor2d(X.slice(i * batch_size, i * batch_size + batch_size))
-        const batch_ys = tf.tensor2d(y.slice(i * batch_size, i * batch_size + batch_size))
+        const indexes = randomIndex.slice(i * batch_size, i * batch_size + batch_size)
+        const xs = []
+        const ys = []
+        indexes.forEach( index => {
+            xs.push(X[index])
+            ys.push(y[index])
+        })
+        const batch_xs = tf.tensor2d(xs)
+        const batch_ys = tf.tensor2d(ys)
         const history = await model.fit(batch_xs, batch_ys, {batchSize: batch_size, epochs: 1})
         const loss = history.history.loss[0]
         const accuracy = history.history.acc[0]
@@ -111,21 +125,6 @@
     
         await tf.nextFrame()
     }
-    // // Train the model using the data.
-    // model.fit(xs, ys).then(() => {
-    //     // Use the model to do inference on a data point the model hasn't seen before:
-    //     // model.predict(tf.tensor2d([5], [1, 1])).print()
-    //     console.log('ready!')
-    //     const predict = (hex, r, g, b) => {
-    //         const rgb = tinycolor(hex).toRgb()
-    //         const result = model.predict(tf.tensor2d([[rgb.r, rgb.g, rgb.b, rgb.a]]))
-    //         console.log(result)
-    //     }
-    //     if (!exports.algos) {
-    //         exports.algos = []
-    //       }
-    //       exports.algos.push({name: myname, f: predict})
-    // })
 
     /* 
         this function will be passed in the color to be identified
@@ -135,18 +134,14 @@
     console.log('ready!')
 
     function pickColor(hex, r, g, b){
-        // const colors = Object.keys(parents)
-        // const randindex = Math.floor(Math.random() * colors.length)
-        // return colors[randindex]
         let ret
         tf.tidy(() => {
-            const rgb = tinycolor(hex).toRgb()
-            const predictOut = model.predict(tf.tensor2d([[rgb.r, rgb.g, rgb.b, rgb.a]]))
+            const predictOut = model.predict(tf.tensor2d([toX(hex)]))
             // console.log(result)
             const logits = Array.from(predictOut.dataSync())
-            console.log(logits)
+            // console.log(logits)
             const winner = labels[predictOut.argMax(-1).dataSync()[0]]
-            console.log(winner)
+            // console.log(winner)
             ret = winner
         })
         return ret
@@ -157,4 +152,6 @@
       exports.algos = []
     }
     exports.algos.push({name: myname, f: pickColor})
+
+    TRAINING_DONE = 1
   })(COLORS)

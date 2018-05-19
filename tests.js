@@ -118,6 +118,11 @@ function testColors () {
 $(window).load(function () {
   var source = $('#colors-template').html()
   COLORS.template = Handlebars.compile(source)
-  setTimeout(testColors, 30000) // waiting for training
-  // testColors()
+  // setTimeout(testColors, 10000) // waiting for training
+  var i = setInterval(() => {
+    if (TRAINING_DONE) {
+      clearInterval(i)
+      testColors()
+    }
+  }, 100)
 })
