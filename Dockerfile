@@ -1,9 +1,9 @@
-FROM python:3.5.3
+FROM frolvlad/alpine-python-machinelearning
 
 WORKDIR /app/
 
 COPY requirements.txt /app/
-RUN pip install -r ./requirements.txt
+RUN pip install Flask
 
 COPY app.py /app/
 COPY *.csv /app/
